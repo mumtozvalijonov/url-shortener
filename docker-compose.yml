@@ -1,0 +1,20 @@
+services:
+  cockroach:
+    image: cockroachdb/cockroach:latest-v25.2
+    container_name: url-shortener-cockroach
+    restart: unless-stopped
+    command: start-single-node --insecure
+    ports:
+      - "26257:26257"
+      - "8080:8080"
+    volumes:
+      - cockroach-data:/cockroach/cockroach-data
+    healthcheck:
+      test: ["CMD", "cockroach", "sql", "--insecure", "--execute", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  cockroach-data:
