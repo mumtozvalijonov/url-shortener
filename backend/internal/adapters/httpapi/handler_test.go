@@ -16,20 +16,43 @@ func TestHandler_RedirectFromShortCode(t *testing.T) {
 	target, err := url.Parse("https://www.google.com/")
 	require.NoError(t, err)
 
-	service := mocks.NewMockShortenerService(t)
-	service.EXPECT().
-		Retrieve(mock.Anything, "abcde").
-		Return(domain.ShortURL{TargetURL: *target}, nil).
-		Once()
+	t.Run("happy path", func(t *testing.T) {
+		t.Parallel()
+		service := mocks.NewMockShortenerService(t)
+		handler := NewHandler(service)
+		router := http.NewServeMux()
+		handler.RegisterRoutes(router)
 
-	req := httptest.NewRequest(http.MethodGet, "/abcde", nil)
-	req.SetPathValue("shortCode", "abcde")
+		service.EXPECT().
+			Retrieve(mock.Anything, "abcde").
+			Return(domain.ShortURL{TargetURL: *target}, nil).
+			Once()
 
-	recorder := httptest.NewRecorder()
-	handler := NewHandler(service)
+		req := httptest.NewRequest(http.MethodGet, "/abcde", nil)
+		recorder := httptest.NewRecorder()
 
-	handler.redirectFromShortCode(recorder, req)
+		router.ServeHTTP(recorder, req)
 
-	require.Equal(t, http.StatusTemporaryRedirect, recorder.Code)
-	require.Equal(t, target.String(), recorder.Header().Get("Location"))
+		require.Equal(t, http.StatusTemporaryRedirect, recorder.Code)
+		require.Equal(t, target.String(), recorder.Header().Get("Location"))
+	})
+	t.Run("url not found", func(t *testing.T) {
+		t.Parallel()
+		service := mocks.NewMockShortenerService(t)
+		handler := NewHandler(service)
+		router := http.NewServeMux()
+		handler.RegisterRoutes(router)
+
+		service.EXPECT().
+			Retrieve(mock.Anything, "qwert").
+			Return(domain.ShortURL{}, domain.ErrShortURLNotFound).
+			Once()
+
+		req := httptest.NewRequest(http.MethodGet, "/qwert", nil)
+		recorder := httptest.NewRecorder()
+
+		router.ServeHTTP(recorder, req)
+
+		require.Equal(t, http.StatusNotFound, recorder.Code)
+	})
 }
