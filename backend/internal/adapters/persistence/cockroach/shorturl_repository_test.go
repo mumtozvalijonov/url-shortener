@@ -59,21 +59,21 @@ func TestShortURLRepository_Insert(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	db := startCockroach(ctx, t)
-
 	repo := cockroach.NewShortURLRepository(db)
+
 	target, err := url.Parse("https://www.google.com/")
 	require.NoError(t, err)
 
-	got, err := repo.Insert(ctx, "abcde", *target)
+	inserted, err := repo.Insert(ctx, "abcde", *target)
 	require.NoError(t, err)
 
-	require.Equal(t, "abcde", got.ShortCode)
-	require.Equal(t, *target, got.TargetURL)
-	require.NotZero(t, got.ID)
-	require.False(t, got.CreatedAt.IsZero())
-	require.False(t, got.UpdatedAt.IsZero())
+	require.Equal(t, "abcde", inserted.ShortCode)
+	require.Equal(t, *target, inserted.TargetURL)
+	require.NotZero(t, inserted.ID)
+	require.False(t, inserted.CreatedAt.IsZero())
+	require.False(t, inserted.UpdatedAt.IsZero())
 
-	_, err = repo.Insert(ctx, "abcde", *target)
+	_, err = repo.Insert(ctx, inserted.ShortCode, *target)
 	require.ErrorIs(t, err, domain.ErrShortCodeTaken)
 }
 
@@ -81,16 +81,91 @@ func TestShortURLRepository_GetByCode(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	db := startCockroach(ctx, t)
-
 	repo := cockroach.NewShortURLRepository(db)
+
 	target, err := url.Parse("https://www.google.com/")
 	require.NoError(t, err)
 
 	inserted, err := repo.Insert(ctx, "abcde", *target)
 	require.NoError(t, err)
 
-	updated, err := repo.GetByCode(ctx, "abcde")
+	got, err := repo.GetByCode(ctx, inserted.ShortCode)
 	require.NoError(t, err)
 
-	require.Equal(t, inserted, updated)
+	require.Equal(t, inserted, got)
+}
+
+func TestShortURLRepository_GetByCode_NotFound(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	db := startCockroach(ctx, t)
+	repo := cockroach.NewShortURLRepository(db)
+
+	target, err := url.Parse("https://www.google.com/")
+	require.NoError(t, err)
+
+	_, err = repo.Insert(ctx, "abcde", *target)
+	require.NoError(t, err)
+
+	_, err = repo.GetByCode(ctx, "qwert")
+	require.ErrorIs(t, err, domain.ErrShortURLNotFound)
+}
+
+func TestShortURLRepository_UpdateByCode(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	db := startCockroach(ctx, t)
+	repo := cockroach.NewShortURLRepository(db)
+
+	target, err := url.Parse("https://www.google.com/")
+	require.NoError(t, err)
+
+	inserted, err := repo.Insert(ctx, "abcde", *target)
+	require.NoError(t, err)
+
+	newTarget, err := url.Parse("https://www.amazon.com")
+	require.NoError(t, err)
+
+	updated, err := repo.UpdateByCode(ctx, inserted.ShortCode, *newTarget)
+	require.NoError(t, err)
+
+	require.Equal(t, inserted.ID, updated.ID)
+	require.Equal(t, inserted.ShortCode, updated.ShortCode)
+	require.Equal(t, updated.TargetURL, *newTarget)
+	require.NotEqual(t, inserted.UpdatedAt, updated.UpdatedAt)
+}
+
+func TestShortURLRepository_DeleteByCode(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	db := startCockroach(ctx, t)
+	repo := cockroach.NewShortURLRepository(db)
+
+	target, err := url.Parse("https://www.google.com/")
+	require.NoError(t, err)
+
+	inserted, err := repo.Insert(ctx, "abcde", *target)
+	require.NoError(t, err)
+
+	err = repo.DeleteByCode(ctx, inserted.ShortCode)
+	require.NoError(t, err)
+
+	_, err = repo.GetByCode(ctx, inserted.ShortCode)
+	require.ErrorIs(t, err, domain.ErrShortURLNotFound)
+}
+
+func TestShortURLRepository_DeleteByCode_NotFound(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	db := startCockroach(ctx, t)
+	repo := cockroach.NewShortURLRepository(db)
+
+	target, err := url.Parse("https://www.google.com/")
+	require.NoError(t, err)
+
+	_, err = repo.Insert(ctx, "abcde", *target)
+	require.NoError(t, err)
+
+	err = repo.DeleteByCode(ctx, "qwert")
+	require.ErrorIs(t, err, domain.ErrShortURLNotFound)
 }
