@@ -1,20 +1,22 @@
 services:
-  cockroach:
-    image: cockroachdb/cockroach:latest-v25.2
-    container_name: url-shortener-cockroach
+  postgres:
+    image: postgres:18-alpine
+    container_name: url-shortener-postgres
     restart: unless-stopped
-    command: start-single-node --insecure
+    environment:
+      POSTGRES_DB: url_shortener
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
-      - "26257:26257"
-      - "8080:8080"
+      - "5432:5432"
     volumes:
-      - cockroach-data:/cockroach/cockroach-data
+      - postgres-data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD", "cockroach", "sql", "--insecure", "--execute", "SELECT 1"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d url_shortener"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
 
 volumes:
-  cockroach-data:
+  postgres-data:
