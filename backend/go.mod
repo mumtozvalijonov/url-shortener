@@ -3,6 +3,7 @@ module github.com/mumtozvalijonov/url-shortener
 go 1.26.3
 
 require (
+	github.com/brianvoe/gofakeit/v7 v7.15.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/pressly/goose/v3 v3.27.1
 	github.com/stretchr/testify v1.11.1
