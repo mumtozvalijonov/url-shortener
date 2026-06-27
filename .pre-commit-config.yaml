@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: testifylint
+        name: testifylint
+        entry: go -C backend run github.com/Antonboom/testifylint@v1.6.4 ./...
+        language: system
+        files: ^backend/.*_test\.go$
+        pass_filenames: false
