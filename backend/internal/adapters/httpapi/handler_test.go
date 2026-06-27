@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -54,5 +55,39 @@ func TestHandler_RedirectFromShortCode(t *testing.T) {
 		router.ServeHTTP(recorder, req)
 
 		require.Equal(t, http.StatusNotFound, recorder.Code)
+	})
+}
+
+func TestHandler_CreateShortURL(t *testing.T) {
+	target, err := url.Parse("https://www.google.com/")
+	require.NoError(t, err)
+
+	t.Run("happy path", func(t *testing.T) {
+		t.Parallel()
+		service := mocks.NewMockShortenerService(t)
+		handler := NewHandler(service)
+		router := http.NewServeMux()
+		handler.RegisterRoutes(router)
+
+		service.EXPECT().
+			Shorten(mock.Anything, *target).
+			Return(
+				domain.ShortURL{
+					ID: 1, ShortCode: "abcde",
+					TargetURL: *target,
+				},
+				nil,
+			).
+			Once()
+
+		req := httptest.NewRequest(
+			http.MethodPost, "/", 
+			bytes.NewReader([]byte(`{"target_url": "https://www.google.com/"}`)),
+		)
+		recorder := httptest.NewRecorder()
+
+		router.ServeHTTP(recorder, req)
+
+		require.Equal(t, http.StatusCreated, recorder.Code)
 	})
 }
