@@ -131,7 +131,7 @@ func TestShortURLRepository_UpdateByCode(t *testing.T) {
 
 	require.Equal(t, inserted.ID, updated.ID)
 	require.Equal(t, inserted.ShortCode, updated.ShortCode)
-	require.Equal(t, updated.TargetURL, *newTarget)
+	require.Equal(t, *newTarget, updated.TargetURL)
 	require.NotEqual(t, inserted.UpdatedAt, updated.UpdatedAt)
 }
 
