@@ -81,7 +81,7 @@ func TestHandler_CreateShortURL(t *testing.T) {
 			Once()
 
 		req := httptest.NewRequest(
-			http.MethodPost, "/", 
+			http.MethodPost, "/",
 			bytes.NewReader([]byte(`{"target_url": "https://www.google.com/"}`)),
 		)
 		recorder := httptest.NewRecorder()
@@ -89,5 +89,39 @@ func TestHandler_CreateShortURL(t *testing.T) {
 		router.ServeHTTP(recorder, req)
 
 		require.Equal(t, http.StatusCreated, recorder.Code)
+	})
+}
+
+func TestHandler_UpdateShortURL(t *testing.T) {
+	target, err := url.Parse("https://www.google.com/")
+	require.NoError(t, err)
+
+	t.Run("happy path", func(t *testing.T) {
+		t.Parallel()
+		service := mocks.NewMockShortenerService(t)
+		handler := NewHandler(service)
+		router := http.NewServeMux()
+		handler.RegisterRoutes(router)
+
+		service.EXPECT().
+			Update(mock.Anything, "abcde", *target).
+			Return(
+				domain.ShortURL{
+					ID: 1, ShortCode: "abcde",
+					TargetURL: *target,
+				},
+				nil,
+			).
+			Once()
+
+		req := httptest.NewRequest(
+			http.MethodPatch, "/abcde",
+			bytes.NewReader([]byte(`{"target_url": "https://www.google.com/"}`)),
+		)
+		recorder := httptest.NewRecorder()
+
+		router.ServeHTTP(recorder, req)
+
+		require.Equal(t, http.StatusOK, recorder.Code)
 	})
 }

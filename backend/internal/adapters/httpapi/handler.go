@@ -21,6 +21,7 @@ func NewHandler(shortURLService ports.ShortenerService) *Handler {
 func (h *Handler) RegisterRoutes(router *http.ServeMux) {
 	router.Handle("POST /", h.handleCreateShortURL())
 	router.Handle("GET /{shortCode}", h.handleRedirectFromShortCode())
+	router.Handle("PATCH /{shortCode}", h.handleUpdateShortURL())
 }
 
 func (h *Handler) handleCreateShortURL() http.Handler {
@@ -80,6 +81,44 @@ func (h *Handler) handleRedirectFromShortCode() http.Handler {
 			}
 
 			http.Redirect(w, r, shortURL.TargetURL.String(), http.StatusTemporaryRedirect)
+		},
+	)
+}
+
+func (h *Handler) handleUpdateShortURL() http.Handler {
+	type requestDTO struct {
+		TargetURL string `json:"target_url"`
+	}
+
+	return http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			shortCode := r.PathValue("shortCode")
+
+			var request requestDTO
+			decoder := json.NewDecoder(r.Body)
+			decoder.DisallowUnknownFields()
+			if err := decoder.Decode(&request); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			targetURL, err := url.Parse(request.TargetURL)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			if _, err := h.shortURLService.Update(r.Context(), shortCode, *targetURL); err != nil {
+				switch {
+				case errors.Is(err, domain.ErrShortURLNotFound):
+					w.WriteHeader(http.StatusNotFound)
+				default:
+					w.WriteHeader(http.StatusInternalServerError)
+				}
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
 		},
 	)
 }
