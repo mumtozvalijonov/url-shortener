@@ -22,6 +22,26 @@ func (h *Handler) RegisterRoutes(router *http.ServeMux) {
 	router.Handle("POST /", h.handleCreateShortURL())
 	router.Handle("GET /{shortCode}", h.handleRedirectFromShortCode())
 	router.Handle("PATCH /{shortCode}", h.handleUpdateShortURL())
+	router.Handle("DELETE /{shortCode}", h.handleDeleteShortURL())
+}
+
+func (h *Handler) handleDeleteShortURL() http.Handler {
+	return http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			shortCode := r.PathValue("shortCode")
+
+			if err := h.shortURLService.Delete(r.Context(), shortCode); err != nil {
+				switch {
+				case errors.Is(err, domain.ErrShortURLNotFound):
+					w.WriteHeader(http.StatusNotFound) // TODO: maybe 204 to avoid enumeration attacks
+				default:
+					w.WriteHeader(http.StatusInternalServerError)
+				}
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		},
+	)
 }
 
 func (h *Handler) handleCreateShortURL() http.Handler {

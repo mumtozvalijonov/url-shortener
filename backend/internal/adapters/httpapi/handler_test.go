@@ -185,3 +185,42 @@ func TestHandler_UpdateShortURL(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, recorder.Code)
 	})
 }
+
+func TestHandler_DeleteShortURL(t *testing.T) {
+	t.Run("happy path", func(t *testing.T) {
+		t.Parallel()
+		service := mocks.NewMockShortenerService(t)
+		handler := NewHandler(service)
+		router := http.NewServeMux()
+		handler.RegisterRoutes(router)
+
+		service.EXPECT().Delete(mock.Anything, "abcde").Return(nil)
+
+		req := httptest.NewRequest(
+			http.MethodDelete, "/abcde", nil,
+		)
+		recorder := httptest.NewRecorder()
+
+		router.ServeHTTP(recorder, req)
+
+		require.Equal(t, http.StatusNoContent, recorder.Code)
+	})
+	t.Run("url not found", func(t *testing.T) {
+		t.Parallel()
+		service := mocks.NewMockShortenerService(t)
+		handler := NewHandler(service)
+		router := http.NewServeMux()
+		handler.RegisterRoutes(router)
+
+		service.EXPECT().Delete(mock.Anything, "abcde").Return(domain.ErrShortURLNotFound)
+
+		req := httptest.NewRequest(
+			http.MethodDelete, "/abcde", nil,
+		)
+		recorder := httptest.NewRecorder()
+
+		router.ServeHTTP(recorder, req)
+
+		require.Equal(t, http.StatusNotFound, recorder.Code)
+	})
+}
