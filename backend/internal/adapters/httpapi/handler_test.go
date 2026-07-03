@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"bytes"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -90,6 +91,23 @@ func TestHandler_CreateShortURL(t *testing.T) {
 
 		require.Equal(t, http.StatusCreated, recorder.Code)
 	})
+	t.Run("invalid url", func(t *testing.T) {
+		t.Parallel()
+		service := mocks.NewMockShortenerService(t)
+		handler := NewHandler(service)
+		router := http.NewServeMux()
+		handler.RegisterRoutes(router)
+
+		req := httptest.NewRequest(
+			http.MethodPost, "/",
+			bytes.NewReader([]byte(`{"target_url": "noprotocol://definitely not a url"}`)),
+		)
+		recorder := httptest.NewRecorder()
+
+		router.ServeHTTP(recorder, req)
+
+		require.Equal(t, http.StatusBadRequest, recorder.Code)
+	})
 }
 
 func TestHandler_UpdateShortURL(t *testing.T) {
@@ -123,5 +141,47 @@ func TestHandler_UpdateShortURL(t *testing.T) {
 		router.ServeHTTP(recorder, req)
 
 		require.Equal(t, http.StatusOK, recorder.Code)
+	})
+	t.Run("url not found", func(t *testing.T) {
+		t.Parallel()
+		service := mocks.NewMockShortenerService(t)
+		handler := NewHandler(service)
+		router := http.NewServeMux()
+		handler.RegisterRoutes(router)
+
+		service.EXPECT().
+			Update(mock.Anything, "qwert", *target).
+			Return(domain.ShortURL{}, domain.ErrShortURLNotFound)
+
+		req := httptest.NewRequest(
+			http.MethodPatch, "/qwert",
+			bytes.NewReader([]byte(`{"target_url": "https://www.google.com/"}`)),
+		)
+		recorder := httptest.NewRecorder()
+
+		router.ServeHTTP(recorder, req)
+
+		require.Equal(t, http.StatusNotFound, recorder.Code)
+	})
+	t.Run("unexpected error", func(t *testing.T) {
+		t.Parallel()
+		service := mocks.NewMockShortenerService(t)
+		handler := NewHandler(service)
+		router := http.NewServeMux()
+		handler.RegisterRoutes(router)
+
+		service.EXPECT().
+			Update(mock.Anything, "qwert", *target).
+			Return(domain.ShortURL{}, errors.New("unexpected error"))
+
+		req := httptest.NewRequest(
+			http.MethodPatch, "/qwert",
+			bytes.NewReader([]byte(`{"target_url": "https://www.google.com/"}`)),
+		)
+		recorder := httptest.NewRecorder()
+
+		router.ServeHTTP(recorder, req)
+
+		require.Equal(t, http.StatusInternalServerError, recorder.Code)
 	})
 }
