@@ -2,11 +2,13 @@ package kafka_test
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	ckafka "github.com/confluentinc/confluent-kafka-go/kafka"
 	kafkaadapter "github.com/mumtozvalijonov/url-shortener/internal/adapters/messaging/kafka"
 	"github.com/mumtozvalijonov/url-shortener/internal/domain"
@@ -60,10 +62,28 @@ func TestVisitPublisher(t *testing.T) {
 			producer.Close()
 		}()
 
-		publisher := kafkaadapter.NewShortURLVisitedPublisher(producer, "test")
+		publisher := kafkaadapter.NewShortURLVisitedPublisher(producer, "test-topic")
 
-		err = publisher.Publish(ctx, domain.ShortURLVisited{})
+		visitedAt := time.Date(2026, 1, 1, 15, 0, 0, 0, time.UTC)
+		err = publisher.Publish(ctx, domain.ShortURLVisited{
+			ShortCode: "abcde",
+			VisitedAt: visitedAt,
+		})
 		require.NoError(t, err)
-	})
 
+		event := <-producer.Events()
+		switch ev := event.(type) {
+		case *kafka.Message:
+			require.NoError(t, ev.TopicPartition.Error)
+			require.Equal(t, "test-topic", *ev.TopicPartition.Topic)
+			var visitedMessage struct {
+				ShortCode string    `json:"short_code"`
+				VisitedAt time.Time `json:"visited_at"`
+			}
+			err := json.Unmarshal(ev.Value, &visitedMessage)
+			require.NoError(t, err)
+			require.Equal(t, "abcde", visitedMessage.ShortCode)
+			require.Equal(t, visitedAt, visitedMessage.VisitedAt)
+		}
+	})
 }
