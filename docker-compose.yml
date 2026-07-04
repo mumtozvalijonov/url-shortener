@@ -18,5 +18,11 @@ services:
       retries: 5
       start_period: 10s
 
+  broker:
+    image: apache/kafka:4.3.1
+    container_name: url-shortener-broker
+    ports:
+      - "9092:9092"
+
 volumes:
   postgres-data:

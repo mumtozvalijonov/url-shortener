@@ -13,8 +13,12 @@ type (
 		Addr               string
 		CORSAllowedOrigins []string
 	}
+	Kafka struct {
+		Brokers string
+	}
 	Config struct {
 		HTTP        HTTP
+		Kafka       Kafka
 		PostgresDSN string
 	}
 )
@@ -26,6 +30,9 @@ func Load() (Config, error) {
 		HTTP: HTTP{
 			Addr:               k.MustString("HTTP_ADDR"),
 			CORSAllowedOrigins: strings.Split(k.String("CORS"), ","),
+		},
+		Kafka: Kafka{
+			Brokers: k.String("KAFKA_BROKERS"),
 		},
 		PostgresDSN: k.MustString("GOOSE_DBSTRING"),
 	}, nil
