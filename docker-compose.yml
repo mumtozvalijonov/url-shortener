@@ -19,7 +19,7 @@ services:
       start_period: 10s
 
   broker:
-    image: apache/kafka:4.3.1
+    image: confluentinc/confluent-local:8.2.2
     container_name: url-shortener-broker
     ports:
       - "9092:9092"
