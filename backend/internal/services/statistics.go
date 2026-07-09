@@ -2,19 +2,25 @@ package services
 
 import (
 	"context"
-	"log"
+	"fmt"
 
 	"github.com/mumtozvalijonov/url-shortener/internal/domain"
+	"github.com/mumtozvalijonov/url-shortener/internal/ports"
 )
 
-type statisticsService struct{}
+type statisticsService struct {
+	shortURLVisitRepo ports.ShortURLVisitRepository
+}
 
-func NewStatisticsService() *statisticsService {
-	return &statisticsService{}
+func NewStatisticsService(shortURLVisitRepo ports.ShortURLVisitRepository) *statisticsService {
+	return &statisticsService{
+		shortURLVisitRepo: shortURLVisitRepo,
+	}
 }
 
 func (s *statisticsService) RecordVisits(ctx context.Context, visits []domain.ShortURLVisited) error {
-	log.Printf("visits: %v\n", visits)
-	// TODO: push batch into short_url_visits table in postgres
+	if err := s.shortURLVisitRepo.InsertVisits(ctx, visits); err != nil {
+		return fmt.Errorf("record visits: %w", err)
+	}
 	return nil
 }

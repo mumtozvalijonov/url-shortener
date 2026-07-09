@@ -14,3 +14,7 @@ type ShortURLRepository interface {
 	DeleteByCode(ctx context.Context, code string) error
 	GetStatistics(ctx context.Context, code string) (domain.ShortURLStatistics, error)
 }
+
+type ShortURLVisitRepository interface {
+	InsertVisits(ctx context.Context, visits []domain.ShortURLVisited) error
+}
