@@ -1,8 +1,23 @@
 services:
   postgres:
-    image: postgres:18-alpine
+    build:
+      context: .
+      dockerfile: docker/postgres/Dockerfile
+    image: url-shortener-postgres:18.4
     container_name: url-shortener-postgres
     restart: unless-stopped
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_cron
+      - -c
+      - cron.database_name=url_shortener
+      - -c
+      - cron.timezone=UTC
+      - -c
+      - cron.use_background_workers=on
+      - -c
+      - timezone=UTC
     environment:
       POSTGRES_DB: url_shortener
       POSTGRES_USER: postgres

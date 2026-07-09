@@ -35,10 +35,26 @@ func startPostgres(ctx context.Context, t *testing.T) *postgresTestServer {
 
 	container, err := postgres.Run(
 		ctx,
-		"postgres:18-alpine",
+		"",
+		testcontainers.WithDockerfile(testcontainers.FromDockerfile{
+			Context:    "../../../../..",
+			Dockerfile: "docker/postgres/Dockerfile",
+			Repo:       "url-shortener-postgres",
+			Tag:        "18.4-test",
+			KeepImage:  true,
+		}),
 		postgres.WithDatabase(templateDatabase),
 		postgres.WithUsername("postgres"),
 		postgres.WithPassword("postgres"),
+		testcontainers.WithCmd(
+			"postgres",
+			"-c", "fsync=off",
+			"-c", "shared_preload_libraries=pg_cron",
+			"-c", "cron.database_name="+templateDatabase,
+			"-c", "cron.timezone=UTC",
+			"-c", "cron.use_background_workers=on",
+			"-c", "timezone=UTC",
+		),
 		postgres.BasicWaitStrategies(),
 	)
 	require.NoError(t, err)
@@ -67,6 +83,24 @@ func startPostgres(ctx context.Context, t *testing.T) *postgresTestServer {
 	adminDB, err := sql.Open("pgx", adminDSN)
 	require.NoError(t, err)
 	require.NoError(t, adminDB.PingContext(ctx))
+
+	_, err = adminDB.ExecContext(
+		ctx,
+		fmt.Sprintf("ALTER DATABASE %s IS_TEMPLATE true", templateDatabase),
+	)
+	require.NoError(t, err)
+	_, err = adminDB.ExecContext(
+		ctx,
+		fmt.Sprintf("ALTER DATABASE %s ALLOW_CONNECTIONS false", templateDatabase),
+	)
+	require.NoError(t, err)
+	_, err = adminDB.ExecContext(
+		ctx,
+		"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1",
+		templateDatabase,
+	)
+	require.NoError(t, err)
+
 	t.Cleanup(func() {
 		require.NoError(t, adminDB.Close())
 	})
