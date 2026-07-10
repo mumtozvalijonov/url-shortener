@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: testifylint
         name: testifylint
-        entry: go -C backend run github.com/Antonboom/testifylint@v1.6.4 ./...
+        entry: testifylint ./...
         language: system
         files: ^backend/.*_test\.go$
         pass_filenames: false
